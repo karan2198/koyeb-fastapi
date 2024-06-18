@@ -12,7 +12,7 @@ app = FastAPI()
 origins = [
     "http://localhost",
     "http://localhost:3000",  # Add the origin of your React frontend
-    "https://my-scheam-gov.vercel.app/", 
+    "https://my-scheam-gov.vercel.app"  # Remove trailing slash
 ]
 
 app.add_middleware(
