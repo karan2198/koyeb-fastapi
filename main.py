@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import pandas as pd
 import numpy as np
@@ -6,6 +7,21 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 app = FastAPI()
+
+# CORS Configuration
+origins = [
+    "http://localhost",
+    "http://localhost:3000",  # Add the origin of your React frontend
+    "https://my-scheam-gov.vercel.app/", 
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
 
 # Load and preprocess data
 def load_and_preprocess_data():
@@ -65,7 +81,7 @@ def get_recommendations(search_terms: str, age: str, social_category: str, gende
     
     return recommendations
 
-
+# Endpoint to fetch recommendations
 @app.post("/recommend")
 def recommend(request: RecommendationRequest):
     try:
