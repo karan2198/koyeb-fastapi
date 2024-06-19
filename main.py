@@ -5,6 +5,9 @@ import pandas as pd
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+import pickle
+import asyncio
+import os
 
 app = FastAPI()
 
@@ -24,9 +27,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load and preprocess data
-def load_and_preprocess_data():
-    rec = pd.read_csv('recommendation_dataset.csv')
+DATA_FILE = 'recommendation_dataset.csv'
+PICKLE_FILE = 'preprocessed_data.pkl'
+VECTORIZER_FILE = 'tfidf_vectorizer.pkl'
+TFIDF_MATRIX_FILE = 'tfidf_matrix.pkl'
+
+def preprocess_and_save_data():
+    rec = pd.read_csv(DATA_FILE)
     rec = rec.dropna()
 
     # Map age ranges to numerical codes
@@ -45,19 +52,41 @@ def load_and_preprocess_data():
 
     rec['scheme_text'] = rec['scheme_name'] + ' ' + rec['description']
 
+    # Save the preprocessed data
+    with open(PICKLE_FILE, 'wb') as f:
+        pickle.dump(rec, f)
+
     return rec
 
-# Load or fit TF-IDF vectorizer
-def load_or_fit_vectorizer(rec):
+def fit_and_save_vectorizer(rec):
     vectorizer = TfidfVectorizer()
     tfidf_matrix = vectorizer.fit_transform(rec['scheme_text'])
+
+    # Save the vectorizer and TF-IDF matrix
+    with open(VECTORIZER_FILE, 'wb') as f:
+        pickle.dump(vectorizer, f)
+    
+    with open(TFIDF_MATRIX_FILE, 'wb') as f:
+        pickle.dump(tfidf_matrix, f)
+
     return vectorizer, tfidf_matrix
 
-# Load and preprocess data
-rec = load_and_preprocess_data()
+def load_data_and_vectorizer():
+    if os.path.exists(PICKLE_FILE) and os.path.exists(VECTORIZER_FILE) and os.path.exists(TFIDF_MATRIX_FILE):
+        with open(PICKLE_FILE, 'rb') as f:
+            rec = pickle.load(f)
+        with open(VECTORIZER_FILE, 'rb') as f:
+            vectorizer = pickle.load(f)
+        with open(TFIDF_MATRIX_FILE, 'rb') as f:
+            tfidf_matrix = pickle.load(f)
+    else:
+        rec = preprocess_and_save_data()
+        vectorizer, tfidf_matrix = fit_and_save_vectorizer(rec)
 
-# Load or fit TF-IDF vectorizer
-vectorizer, tfidf_matrix = load_or_fit_vectorizer(rec)
+    return rec, vectorizer, tfidf_matrix
+
+# Load data and vectorizer on startup
+rec, vectorizer, tfidf_matrix = load_data_and_vectorizer()
 
 class RecommendationRequest(BaseModel):
     search_terms: str
@@ -84,9 +113,9 @@ def get_recommendations(search_terms: str, age: str, social_category: str, gende
 
 # Endpoint to fetch recommendations
 @app.post("/recommend")
-def recommend(request: RecommendationRequest):
+async def recommend(request: RecommendationRequest):
     try:
-        recommendations = get_recommendations(
+        recommendations = await asyncio.to_thread(get_recommendations,
             request.search_terms,
             request.age,
             request.social_category,
