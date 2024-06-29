@@ -8,13 +8,14 @@ from sklearn.metrics.pairwise import cosine_similarity
 import pickle
 import asyncio
 import os
+from functools import lru_cache
 
 app = FastAPI()
 
 # CORS Configuration
 origins = [
     "http://localhost",
-    "http://localhost:3000",  # Add the origin of your React frontend
+    "http://localhost:3000",
     "https://my-scheam-gov.vercel.app",
     "https://my-scheam-o8ylu1eup-karan2198s-projects.vercel.app"
 ]
@@ -36,12 +37,10 @@ def preprocess_and_save_data():
     rec = pd.read_csv(DATA_FILE)
     rec = rec.dropna()
 
-    # Map age ranges to numerical codes
     age_mapping = {'Below 10': 0, '10-15': 1, '16-20': 2, '21-25': 3, '26-30': 4, 
                    '31-35': 5, '36-40': 6, '41-45': 7, '46-50': 8, 'Above 50': 9}
     rec['age'] = rec['age'].map(age_mapping)
 
-    # Convert categorical variables to numerical codes
     caste_mapping = {'SC': 0, 'ST': 1, 'OBC': 2}
     rec['social_category'] = rec['social_category'].map(caste_mapping)
 
@@ -52,7 +51,6 @@ def preprocess_and_save_data():
 
     rec['scheme_text'] = rec['scheme_name'] + ' ' + rec['description']
 
-    # Save the preprocessed data
     with open(PICKLE_FILE, 'wb') as f:
         pickle.dump(rec, f)
 
@@ -62,7 +60,6 @@ def fit_and_save_vectorizer(rec):
     vectorizer = TfidfVectorizer()
     tfidf_matrix = vectorizer.fit_transform(rec['scheme_text'])
 
-    # Save the vectorizer and TF-IDF matrix
     with open(VECTORIZER_FILE, 'wb') as f:
         pickle.dump(vectorizer, f)
     
@@ -85,7 +82,6 @@ def load_data_and_vectorizer():
 
     return rec, vectorizer, tfidf_matrix
 
-# Load data and vectorizer on startup
 rec, vectorizer, tfidf_matrix = load_data_and_vectorizer()
 
 class RecommendationRequest(BaseModel):
@@ -96,9 +92,13 @@ class RecommendationRequest(BaseModel):
     domicile_of_tripura: str
     num_recommendations: int = 5
 
+@lru_cache(maxsize=128)
+def get_query_vector(search_query):
+    return vectorizer.transform([search_query])
+
 def get_recommendations(search_terms: str, age: str, social_category: str, gender: str, domicile_of_tripura: str, num_recommendations: int = 5):
     search_query = f"{search_terms} {age} {social_category} {gender} {domicile_of_tripura}"
-    query_vector = vectorizer.transform([search_query])
+    query_vector = get_query_vector(search_query)
     cosine_similarities = cosine_similarity(query_vector, tfidf_matrix).flatten()
     top_similar_indices = cosine_similarities.argsort()[::-1]
 
@@ -106,12 +106,10 @@ def get_recommendations(search_terms: str, age: str, social_category: str, gende
     unique_indices = [index for index in top_similar_indices if not (rec.iloc[index]['scheme_name'] in seen or seen.add(rec.iloc[index]['scheme_name']))]
     unique_recommendations = unique_indices[:num_recommendations]
     
-    # Handle NaN values
     recommendations = rec.iloc[unique_recommendations].fillna("").to_dict('records')
     
     return recommendations
 
-# Endpoint to fetch recommendations
 @app.post("/recommend")
 async def recommend(request: RecommendationRequest):
     try:
@@ -129,4 +127,4 @@ async def recommend(request: RecommendationRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
