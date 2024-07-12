@@ -9,6 +9,7 @@ import pickle
 import asyncio
 import os
 from functools import lru_cache
+import time
 
 app = FastAPI()
 
@@ -32,6 +33,10 @@ DATA_FILE = 'recommendation_dataset.csv'
 PICKLE_FILE = 'preprocessed_data.pkl'
 VECTORIZER_FILE = 'tfidf_vectorizer.pkl'
 TFIDF_MATRIX_FILE = 'tfidf_matrix.pkl'
+
+rec = None
+vectorizer = None
+tfidf_matrix = None
 
 def preprocess_and_save_data():
     rec = pd.read_csv(DATA_FILE)
@@ -69,6 +74,7 @@ def fit_and_save_vectorizer(rec):
     return vectorizer, tfidf_matrix
 
 def load_data_and_vectorizer():
+    global rec, vectorizer, tfidf_matrix
     if os.path.exists(PICKLE_FILE) and os.path.exists(VECTORIZER_FILE) and os.path.exists(TFIDF_MATRIX_FILE):
         with open(PICKLE_FILE, 'rb') as f:
             rec = pickle.load(f)
@@ -79,10 +85,6 @@ def load_data_and_vectorizer():
     else:
         rec = preprocess_and_save_data()
         vectorizer, tfidf_matrix = fit_and_save_vectorizer(rec)
-
-    return rec, vectorizer, tfidf_matrix
-
-rec, vectorizer, tfidf_matrix = load_data_and_vectorizer()
 
 class RecommendationRequest(BaseModel):
     search_terms: str
@@ -110,9 +112,14 @@ def get_recommendations(search_terms: str, age: str, social_category: str, gende
     
     return recommendations
 
+@app.on_event("startup")
+async def startup_event():
+    load_data_and_vectorizer()
+
 @app.post("/recommend")
 async def recommend(request: RecommendationRequest):
     try:
+        start_time = time.time()
         recommendations = await asyncio.to_thread(get_recommendations,
             request.search_terms,
             request.age,
@@ -121,7 +128,10 @@ async def recommend(request: RecommendationRequest):
             request.domicile_of_tripura,
             request.num_recommendations
         )
-        return {"recommendations": recommendations}
+        elapsed_time = time.time() - start_time
+        if elapsed_time > 10:
+            raise HTTPException(status_code=500, detail=f"Request timed out after {elapsed_time:.2f} seconds")
+        return {"recommendations": recommendations, "time_taken": elapsed_time}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
