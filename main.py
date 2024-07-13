@@ -1,12 +1,16 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from recommendation.models import RecommendationRequest
-from recommendation.recommend import get_recommendations
+from recommendation.recommend import get_recommendations, load_data_and_vectorizer
 
 import asyncio
-import time
+import logging
 
 app = FastAPI()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # CORS Configuration
 origins = [
@@ -24,10 +28,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+async def on_startup():
+    logger.info("Loading data and vectorizer...")
+    await load_data_and_vectorizer()
+    logger.info("Data and vectorizer loaded successfully.")
+
 @app.post("/recommend")
 async def recommend(request: RecommendationRequest):
     try:
-        
+        # Run get_recommendations in a separate thread to avoid blocking the event loop
         recommendations = await asyncio.to_thread(get_recommendations,
             request.search_terms,
             request.age,
@@ -36,10 +46,10 @@ async def recommend(request: RecommendationRequest):
             request.domicile_of_tripura,
             request.num_recommendations
         )
-    
         return {"recommendations": recommendations}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error while getting recommendations: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 if __name__ == "__main__":
     import uvicorn

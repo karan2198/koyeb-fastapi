@@ -14,8 +14,7 @@ rec = None
 vectorizer = None
 tfidf_matrix = None
 
-
-def load_data_and_vectorizer():
+async def load_data_and_vectorizer():
     global rec, vectorizer, tfidf_matrix
     try:
         if os.path.exists(PICKLE_FILE) and os.path.exists(VECTORIZER_FILE) and os.path.exists(TFIDF_MATRIX_FILE):
@@ -49,6 +48,3 @@ def get_recommendations(search_terms: str, age: str, social_category: str, gende
     recommendations = rec.iloc[unique_recommendations].fillna("").to_dict('records')
     
     return recommendations
-
-# Load data and vectorizer on module import
-load_data_and_vectorizer()
