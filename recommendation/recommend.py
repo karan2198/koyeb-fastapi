@@ -14,42 +14,6 @@ rec = None
 vectorizer = None
 tfidf_matrix = None
 
-def preprocess_and_save_data():
-    global rec
-    rec = pd.read_csv(DATA_FILE)
-    rec = rec.dropna()
-
-    age_mapping = {'Below 10': 0, '10-15': 1, '16-20': 2, '21-25': 3, '26-30': 4, 
-                   '31-35': 5, '36-40': 6, '41-45': 7, '46-50': 8, 'Above 50': 9}
-    rec['age'] = rec['age'].map(age_mapping)
-
-    caste_mapping = {'SC': 0, 'ST': 1, 'OBC': 2}
-    rec['social_category'] = rec['social_category'].map(caste_mapping)
-
-    gender_mapping = {'M': 0, 'F': 1, 'T': 2}
-    rec['gender'] = rec['gender'].map(gender_mapping)
-
-    rec['domicile_of_tripura'] = rec['domicile_of_tripura'].map({'Y': 1, 'N': 0})
-
-    rec['scheme_text'] = rec['scheme_name'] + ' ' + rec['description']
-
-    with open(PICKLE_FILE, 'wb') as f:
-        pickle.dump(rec, f)
-
-    return rec
-
-def fit_and_save_vectorizer(rec):
-    global vectorizer, tfidf_matrix
-    vectorizer = TfidfVectorizer()
-    tfidf_matrix = vectorizer.fit_transform(rec['scheme_text'])
-
-    with open(VECTORIZER_FILE, 'wb') as f:
-        pickle.dump(vectorizer, f)
-    
-    with open(TFIDF_MATRIX_FILE, 'wb') as f:
-        pickle.dump(tfidf_matrix, f)
-
-    return vectorizer, tfidf_matrix
 
 def load_data_and_vectorizer():
     global rec, vectorizer, tfidf_matrix
