@@ -17,16 +17,12 @@ tfidf_matrix = None
 async def load_data_and_vectorizer():
     global rec, vectorizer, tfidf_matrix
     try:
-        if os.path.exists(PICKLE_FILE) and os.path.exists(VECTORIZER_FILE) and os.path.exists(TFIDF_MATRIX_FILE):
-            with open(PICKLE_FILE, 'rb') as f:
-                rec = pickle.load(f)
-            with open(VECTORIZER_FILE, 'rb') as f:
-                vectorizer = pickle.load(f)
-            with open(TFIDF_MATRIX_FILE, 'rb') as f:
-                tfidf_matrix = pickle.load(f)
-        else:
-            rec = preprocess_and_save_data()
-            vectorizer, tfidf_matrix = fit_and_save_vectorizer(rec)
+        with open(PICKLE_FILE, 'rb') as f:
+            rec = pickle.load(f)
+        with open(VECTORIZER_FILE, 'rb') as f:
+            vectorizer = pickle.load(f)
+        with open(TFIDF_MATRIX_FILE, 'rb') as f:
+            tfidf_matrix = pickle.load(f)
     except Exception as e:
         print(f"Error loading data and vectorizer: {str(e)}")
 

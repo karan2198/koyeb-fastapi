@@ -5,6 +5,7 @@ from recommendation.recommend import get_recommendations, load_data_and_vectoriz
 
 import asyncio
 import logging
+import time
 
 app = FastAPI()
 
@@ -37,7 +38,7 @@ async def on_startup():
 @app.post("/recommend")
 async def recommend(request: RecommendationRequest):
     try:
-        # Run get_recommendations in a separate thread to avoid blocking the event loop
+        start_time = time.time()
         recommendations = await asyncio.to_thread(get_recommendations,
             request.search_terms,
             request.age,
@@ -46,6 +47,9 @@ async def recommend(request: RecommendationRequest):
             request.domicile_of_tripura,
             request.num_recommendations
         )
+        end_time = time.time()
+        logger.info(f"Request processed in {end_time - start_time} seconds")
+
         return {"recommendations": recommendations}
     except Exception as e:
         logger.error(f"Error while getting recommendations: {str(e)}")
