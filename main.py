@@ -27,7 +27,7 @@ app.add_middleware(
 @app.post("/recommend")
 async def recommend(request: RecommendationRequest):
     try:
-        start_time = time.time()
+        
         recommendations = await asyncio.to_thread(get_recommendations,
             request.search_terms,
             request.age,
@@ -36,10 +36,8 @@ async def recommend(request: RecommendationRequest):
             request.domicile_of_tripura,
             request.num_recommendations
         )
-        elapsed_time = time.time() - start_time
-        if elapsed_time > 10:
-            raise HTTPException(status_code=500, detail=f"Request timed out after {elapsed_time:.2f} seconds")
-        return {"recommendations": recommendations, "time_taken": elapsed_time}
+    
+        return {"recommendations": recommendations}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
